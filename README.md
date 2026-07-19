@@ -82,15 +82,6 @@ that `setup()` call to try the centered float.
 | `:SquixStatus` | Show the active connection's type/schema, saved-query count, and reachability. |
 | `:SquixTables` | Browse the database's tables in the squix TUI (split or float, header hidden like `:SquixRun`). Press `Enter` on a table to query it. |
 
-Examples:
-
-```vim
-:.SquixRun                  " run current line in the TUI
-:'<,'>SquixRun              " run visual selection in the TUI
-:SquixSwitch production     " switch directly, no picker
-:'<,'>SquixAdd top_clients  " save the selection as a named query
-```
-
 ## Plugin Configuration
 
 ```lua
