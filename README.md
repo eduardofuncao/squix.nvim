@@ -1,31 +1,44 @@
-# squix.nvim
+<div align="center">
+   <h1>
+      <img width="auto" height="48" alt="squix.nvim mascot" src="https://github.com/user-attachments/assets/12c80b15-e6a9-4417-927c-81dea11d8c61" />
+      squix.nvim
+      <img width="auto" height="36" alt="image" src="https://github.com/user-attachments/assets/c128f28f-dd10-4213-9915-dedafe7ae831" />
+   </h1>
+   <img width="967" height="682" alt="image" src="https://github.com/user-attachments/assets/0e81562c-7249-4875-8f70-0fbe2e2be88e" />
+   
+   Run SQL from Neovim with [squix](https://github.com/eduardofuncao/squix): 
+   write a query, run it and save it for later. Navigate results with vim bindings 
+</div>
 
-Run SQL from Neovim through [squix](https://github.com/eduardofuncao/squix) —
-write a query, run it in the squix TUI, and stash reusable queries. Minimal and
-zero-config (sensible defaults), configurable via `setup()`.
 
 ## Quick start
 
-1. Install the [squix CLI](https://github.com/eduardofuncao/squix#quick-start).
-2. `:SquixInit` — create a connection (prompts for name + connection string;
-   see [connection-string examples](https://github.com/eduardofuncao/squix/blob/main/docs/databases.md)).
-3. Write some SQL, then run it, stash it, and re-run it later:
+1. Install the [squix CLI](https://github.com/eduardofuncao/squix#installation).
+2. Install the [squix.nvim plugin](#install) 
+3. Run `:SquixInit` to create a connection from a database connection string (prompts for name + connstring.
+   see [connection-string examples for different database engines](https://github.com/eduardofuncao/squix/blob/main/docs/databases.md)).
+4. Write some SQL, then run it, stash it, and re-run it later:
 
 ```vim
 :SquixRun              " run the SQL under the cursor (paragraph or selection) in the TUI
 :SquixAdd              " save that SQL as a named query (prompts for a name)
 :SquixRunNamedQuery    " pick and run a saved query
-:SquixSwitch           " switch connection
+:SquixSwitch           " switch  database connection
 ```
+5. After the query results window opens, you can traverse it using vim bindings: `hjkl`, `0/$`, `gg/G`, `<C-D>/<C-U>` for navigation; `v/V`, `y` and `x` for visual selection, copying and exporting results; `/` for searching results contents (`n/N` for next/prev) and `f` for searching columns names (`;/,` for next/prev); `q` to close it. Press `H` for the full shortcut list
 
-That's the whole loop: write → run → save → re-run. No keymaps are bound by
-default — see [Configuration](#configuration) to enable `<leader>s*` shortcuts.
+<img width="867" height="300" alt="image" src="https://github.com/user-attachments/assets/5c776060-6e57-483f-8942-56c99fadad06" />
+
+5. It is also possible to run update (`u`) and delete commands(`D`), as well as changing the ran SQL (`e`). For these keybinds, squix will open a buffer preloaded with the SQL statement, and you can save and quit (`:wq`) to run it, or quit without saving(`:q`) to cancel it
+
+That's the main loop: write → run → save → re-run. 
+> No keymaps are bound by default. See [Plugin Configuration](#plugin-configuration) to enable the recommended `<leader>s*` shortcuts.
 
 ## Requirements
 
 - Neovim **0.10+** (uses `vim.system`, `vim.ui.select`)
 - The **squix** CLI installed and on `PATH` ([install](https://github.com/eduardofuncao/squix#quick-start))
-- At least one connection configured (`:SquixInit` from within Neovim, or `squix init` on the CLI)
+- At least one database connection configured (`:SquixInit` from within Neovim, or `squix init` on the CLI)
 
 ## Install
 
@@ -35,14 +48,14 @@ default — see [Configuration](#configuration) to enable `<leader>s*` shortcuts
 { "eduardofuncao/squix.nvim", opts = {} }
 ```
 
-### [vim.pack](https://neovim.io/doc/user/lua.html#vim.pack) — Neovim ≥ 0.12 native
+### [vim.pack](https://neovim.io/doc/user/lua.html#vim.pack) Neovim ≥ 0.12 native
 
 ```lua
 vim.pack.add({ "eduardofuncao/squix.nvim" })
 require("squix").setup({})
 ```
 
-## Try without installing
+### Try without installing
 
 Clone the repo and load it straight from Neovim (no plugin manager needed; just
 needs the `squix` CLI on `PATH`):
@@ -53,10 +66,10 @@ cd squix.nvim
 nvim --cmd "set rtp^=$PWD" -c "lua require('squix').setup({})"
 ```
 
-All `:Squix*` commands are available. Add a `window = { position = "float" }` to
+> try adding a `window = { position = "float" }` to
 that `setup()` call to try the centered float.
 
-## Commands
+## All Commands
 
 | Command | Description |
 | --- | --- |
@@ -78,7 +91,7 @@ Examples:
 :'<,'>SquixAdd top_clients  " save the selection as a named query
 ```
 
-## Configuration
+## Plugin Configuration
 
 ```lua
 require("squix").setup({
@@ -106,6 +119,12 @@ require("squix").setup({
 })
 ```
 
-## License
+## Squix Configuration
+All database connections and squix configuration options are stored in `$HOME/.config/squix/config.yaml. See [squix configuration doc](https://github.com/eduardofuncao/squix/blob/main/docs/configuration.md) for more options
 
-MIT, inherited from the squix repository.
+---
+
+<div align="center">
+Made with 🐿️ by [@eduardofuncao](https://github.com/eduardofuncao)
+</div>
+
