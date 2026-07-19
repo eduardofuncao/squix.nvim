@@ -5,8 +5,9 @@
       <img width="auto" height="36" alt="image" src="https://github.com/user-attachments/assets/c128f28f-dd10-4213-9915-dedafe7ae831" />
    </h1>
    <img width="967" height="682" alt="image" src="https://github.com/user-attachments/assets/0e81562c-7249-4875-8f70-0fbe2e2be88e" />
-   
-   Run SQL from Neovim with [squix](https://github.com/eduardofuncao/squix): 
+   <h3>SQL Query Stashing for Neovim Squirrels</h3>
+   <hr>
+   Run SQL from Neovim with <a href="https://github.com/eduardofuncao/squix">squix</a>: 
    write a query, run it and save it for later. Navigate results with vim bindings 
 </div>
 
@@ -16,7 +17,7 @@
 1. Install the [squix CLI](https://github.com/eduardofuncao/squix#installation).
 2. Install the [squix.nvim plugin](#install) 
 3. Run `:SquixInit` to create a connection from a database connection string (prompts for name + connstring.
-   see [connection-string examples for different database engines](https://github.com/eduardofuncao/squix/blob/main/docs/databases.md)).
+   see [connection-string examples for different database engines](https://github.com/eduardofuncao/squix/blob/main/docs/databases.md)). Database connections are saved in the [squix config file](#squix-configuration)
 4. Write some SQL, then run it, stash it, and re-run it later:
 
 ```vim
@@ -32,26 +33,22 @@
 5. It is also possible to run update (`u`) and delete commands(`D`), as well as changing the ran SQL (`e`). For these keybinds, squix will open a buffer preloaded with the SQL statement, and you can save and quit (`:wq`) to run it, or quit without saving(`:q`) to cancel it
 
 That's the main loop: write → run → save → re-run. 
-> No database to try it on? Run `:SquixExample`, then `:SquixInit --name example --conn example.db`. See [Try it: sample database](#try-it-sample-database).
 > No keymaps are bound by default. See [Plugin Configuration](#plugin-configuration) to enable the recommended `<leader>s*` shortcuts.
 
-## Try it: sample database
+## Try it with a sample database
 
-No database handy? `squix example` ships an Office-themed SQLite DB you can be
-querying in seconds — `employees`, `departments`, and `timesheets` tables:
+No database ready? `:SquixExample` creates an office-themed SQLite DB for testing (`employees`, `departments`, and `timesheets` tables). Test it with:
 
 ```vim
-:SquixExample                                  " create ./example.db (Office-themed)
-:SquixExample my.db                           " ...or a custom path
-:SquixExample!                                 " recreate, overwriting the existing file
-:SquixInit --name example --conn example.db    " register it as a connection
-:SquixTables                                   " browse tables in the squix TUI
+:SquixExample                                 " create ./example.db
+:SquixInit example example.db                 " register it as a connection
+:SquixTables                                  " explore tables in the database
 ```
 
-Then write some SQL and run it with `:SquixRun`:
+Then write some SQL, place your cursor on it and run with `:SquixRun`:
 
 ```sql
-select * from employees where department_id = 1;
+select * from employees;
 ```
 
 ## Requirements
@@ -97,19 +94,20 @@ that `setup()` call to try the centered float.
 | `:SquixRunNamedQuery [name]` | Run a saved query in the TUI. With a name, runs it directly; without, picks from your stashed queries. Tab-completes query names. |
 | `:SquixAdd [name]` | Save the selected SQL (or the cursor's paragraph) as a named query (`squix add`). Range-aware like `:SquixRun`. |
 | `:SquixRemove [name]` | Remove a saved query. With a name, removes it directly; without, picks from a list. Tab-completes query names. |
-| `:SquixInit [args...]` | Create a connection (`squix init`). Args pass through verbatim — flag mode (`:SquixInit --name dev --type postgres --conn "postgres://…"`) or positional (`:SquixInit dev "postgres://…"`) — with `--name`/`-n`, `--type`/`-t`, `--conn`/`-c`, `--schema`/`-s` all supported; type is inferred from the connection string when `--type` is omitted. Without args, prompts for name, connection string, optional schema. `$VAR` is expanded for secrets. See [argument forms](#squixinit-argument-forms). |
+| `:SquixInit [args...]` | Create a connection (`squix init`). Args pass through to squix cli. flag mode (`:SquixInit --name dev --type postgres --conn "postgres://…"`) or positional (`:SquixInit dev "postgres://…"`). See [argument forms](#squixinit-argument-forms). |
 | `:SquixSwitch [name]` | Switch to a connection. With a name, switches directly; without, picks from a list. Tab-completes connection names. |
 | `:SquixStatus` | Show the active connection's type/schema, saved-query count, and reachability. |
 | `:SquixTables` | Browse the database's tables in the squix TUI (split or float, header hidden like `:SquixRun`). Press `Enter` on a table to query it. |
-| `:SquixExample [path]` | Create a sample Office-themed SQLite database (`squix example`) — defaults to `./example.db`; `:SquixExample!` forces overwrite, a path arg customizes the file. Then `:SquixInit --name example --conn <path>` to register it. See [Try it: sample database](#try-it-sample-database). |
+| `:SquixExample [path]` | Create a sample Office-themed SQLite database (`squix example`). Defaults to `./example.db`; `:SquixExample!` forces overwrite, a path arg customizes the file. See [Try it: sample database](#try-it-sample-database). |
 
-### `:SquixInit` argument forms
+### `:SquixInit` options
 
 `:SquixInit` forwards arguments straight to `squix init`, so every CLI form
-works (short aliases `-n -t -c -s` too). `--type`/`-t` is optional — squix
-infers the database type from the connection string.
+works. `--type`/`-t` is optional, squix infers the database type from the connection string.
 
 ```vim
+:SquixInit <name> <type> <conn-string> [schema]
+
 " flag mode (type inferred when --type is omitted)
 :SquixInit --name dev --conn "postgres://user:pass@localhost:5432/db"
 :SquixInit --name prod --type sqlserver --conn "sqlserver://sa:pw@host" --schema public
@@ -122,10 +120,6 @@ infers the database type from the connection string.
 " no arguments → prompted for name, connection string, schema
 :SquixInit
 ```
-
-> Don't mix the 3-positional form with the `--schema` flag — squix rejects
-> `<name> <type> <conn> --schema <s>`. Use pure flag mode, or pass schema as a
-> 4th positional.
 
 ## Plugin Configuration
 
