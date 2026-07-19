@@ -111,7 +111,7 @@ require("squix").setup({
 ```
 
 ## Squix Configuration
-All database connections and squix configuration options are stored in `$HOME/.config/squix/config.yaml. See [squix configuration doc](https://github.com/eduardofuncao/squix/blob/main/docs/configuration.md) for more options
+All database connections and squix configuration options are stored in `$HOME/.config/squix/config.yaml`. See [squix configuration doc](https://github.com/eduardofuncao/squix/blob/main/docs/configuration.md) for more options
 
 ---
 
