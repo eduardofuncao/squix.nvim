@@ -94,7 +94,7 @@ that `setup()` call to try the centered float.
 | `:SquixRunNamedQuery [name]` | Run a saved query in the TUI. With a name, runs it directly; without, picks from your stashed queries. Tab-completes query names. |
 | `:SquixAdd [name]` | Save the selected SQL (or the cursor's paragraph) as a named query (`squix add`). Range-aware like `:SquixRun`. |
 | `:SquixRemove [name]` | Remove a saved query. With a name, removes it directly; without, picks from a list. Tab-completes query names. |
-| `:SquixInit [args...]` | Create a connection (`squix init`). Args pass through to squix cli. flag mode (`:SquixInit --name dev --type postgres --conn "postgres://…"`) or positional (`:SquixInit dev "postgres://…"`). See [SquixInit options](##squixinit-options). |
+| `:SquixInit [args...]` | Create a connection (`squix init`). Args pass through to squix cli. flag mode (`:SquixInit --name dev --type postgres --conn "postgres://…"`) or positional (`:SquixInit dev "postgres://…"`). See [SquixInit options](#squixinit-options). |
 | `:SquixSwitch [name]` | Switch to a connection. With a name, switches directly; without, picks from a list. Tab-completes connection names. |
 | `:SquixStatus` | Show the active connection's type/schema, saved-query count, and reachability. |
 | `:SquixTables` | Browse the database's tables in the squix TUI (split or float, header hidden like `:SquixRun`). Press `Enter` on a table to query it. |
