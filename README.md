@@ -54,7 +54,7 @@ select * from employees;
 ## Requirements
 
 - Neovim **0.10+** (uses `vim.system`, `vim.ui.select`)
-- The **squix** CLI installed and on `PATH` ([install](https://github.com/eduardofuncao/squix#quick-start))
+- The **squix** CLI installed and on `PATH`
 - At least one database connection configured (`:SquixInit` from within Neovim, or `squix init` on the CLI)
 
 ## Install
@@ -94,11 +94,11 @@ that `setup()` call to try the centered float.
 | `:SquixRunNamedQuery [name]` | Run a saved query in the TUI. With a name, runs it directly; without, picks from your stashed queries. Tab-completes query names. |
 | `:SquixAdd [name]` | Save the selected SQL (or the cursor's paragraph) as a named query (`squix add`). Range-aware like `:SquixRun`. |
 | `:SquixRemove [name]` | Remove a saved query. With a name, removes it directly; without, picks from a list. Tab-completes query names. |
-| `:SquixInit [args...]` | Create a connection (`squix init`). Args pass through to squix cli. flag mode (`:SquixInit --name dev --type postgres --conn "postgres://…"`) or positional (`:SquixInit dev "postgres://…"`). See [argument forms](#squixinit-argument-forms). |
+| `:SquixInit [args...]` | Create a connection (`squix init`). Args pass through to squix cli. flag mode (`:SquixInit --name dev --type postgres --conn "postgres://…"`) or positional (`:SquixInit dev "postgres://…"`). See [SquixInit options](##squixinit-options). |
 | `:SquixSwitch [name]` | Switch to a connection. With a name, switches directly; without, picks from a list. Tab-completes connection names. |
 | `:SquixStatus` | Show the active connection's type/schema, saved-query count, and reachability. |
 | `:SquixTables` | Browse the database's tables in the squix TUI (split or float, header hidden like `:SquixRun`). Press `Enter` on a table to query it. |
-| `:SquixExample [path]` | Create a sample Office-themed SQLite database (`squix example`). Defaults to `./example.db`; `:SquixExample!` forces overwrite, a path arg customizes the file. See [Try it: sample database](#try-it-sample-database). |
+| `:SquixExample [path]` | Create a sample Office-themed SQLite database (`squix example`). Defaults to `./example.db`; `:SquixExample!` forces overwrite, a path arg customizes the file. See [Try it with a sample database](#try-it-with-a-sample-database). |
 
 ### `:SquixInit` options
 
@@ -155,6 +155,6 @@ All database connections and squix configuration options are stored in `$HOME/.c
 ---
 
 <div align="center">
-Made with 🐿️ by [@eduardofuncao](https://github.com/eduardofuncao)
+Made with 🐿️ by <a href="https://github.com/eduardofuncao">@eduardofuncao</a>
 </div>
 
