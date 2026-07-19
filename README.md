@@ -32,7 +32,27 @@
 5. It is also possible to run update (`u`) and delete commands(`D`), as well as changing the ran SQL (`e`). For these keybinds, squix will open a buffer preloaded with the SQL statement, and you can save and quit (`:wq`) to run it, or quit without saving(`:q`) to cancel it
 
 That's the main loop: write → run → save → re-run. 
+> No database to try it on? Run `:SquixExample`, then `:SquixInit --name example --conn example.db`. See [Try it: sample database](#try-it-sample-database).
 > No keymaps are bound by default. See [Plugin Configuration](#plugin-configuration) to enable the recommended `<leader>s*` shortcuts.
+
+## Try it: sample database
+
+No database handy? `squix example` ships an Office-themed SQLite DB you can be
+querying in seconds — `employees`, `departments`, and `timesheets` tables:
+
+```vim
+:SquixExample                                  " create ./example.db (Office-themed)
+:SquixExample my.db                           " ...or a custom path
+:SquixExample!                                 " recreate, overwriting the existing file
+:SquixInit --name example --conn example.db    " register it as a connection
+:SquixTables                                   " browse tables in the squix TUI
+```
+
+Then write some SQL and run it with `:SquixRun`:
+
+```sql
+select * from employees where department_id = 1;
+```
 
 ## Requirements
 
@@ -77,10 +97,35 @@ that `setup()` call to try the centered float.
 | `:SquixRunNamedQuery [name]` | Run a saved query in the TUI. With a name, runs it directly; without, picks from your stashed queries. Tab-completes query names. |
 | `:SquixAdd [name]` | Save the selected SQL (or the cursor's paragraph) as a named query (`squix add`). Range-aware like `:SquixRun`. |
 | `:SquixRemove [name]` | Remove a saved query. With a name, removes it directly; without, picks from a list. Tab-completes query names. |
-| `:SquixInit` | Create a new connection (prompts for name, connection string, optional schema). Db type is inferred from the connection string; `$VAR` is expanded for secrets. |
+| `:SquixInit [args...]` | Create a connection (`squix init`). Args pass through verbatim — flag mode (`:SquixInit --name dev --type postgres --conn "postgres://…"`) or positional (`:SquixInit dev "postgres://…"`) — with `--name`/`-n`, `--type`/`-t`, `--conn`/`-c`, `--schema`/`-s` all supported; type is inferred from the connection string when `--type` is omitted. Without args, prompts for name, connection string, optional schema. `$VAR` is expanded for secrets. See [argument forms](#squixinit-argument-forms). |
 | `:SquixSwitch [name]` | Switch to a connection. With a name, switches directly; without, picks from a list. Tab-completes connection names. |
 | `:SquixStatus` | Show the active connection's type/schema, saved-query count, and reachability. |
 | `:SquixTables` | Browse the database's tables in the squix TUI (split or float, header hidden like `:SquixRun`). Press `Enter` on a table to query it. |
+| `:SquixExample [path]` | Create a sample Office-themed SQLite database (`squix example`) — defaults to `./example.db`; `:SquixExample!` forces overwrite, a path arg customizes the file. Then `:SquixInit --name example --conn <path>` to register it. See [Try it: sample database](#try-it-sample-database). |
+
+### `:SquixInit` argument forms
+
+`:SquixInit` forwards arguments straight to `squix init`, so every CLI form
+works (short aliases `-n -t -c -s` too). `--type`/`-t` is optional — squix
+infers the database type from the connection string.
+
+```vim
+" flag mode (type inferred when --type is omitted)
+:SquixInit --name dev --conn "postgres://user:pass@localhost:5432/db"
+:SquixInit --name prod --type sqlserver --conn "sqlserver://sa:pw@host" --schema public
+
+" positional (type inferred with 2 args, explicit with 3)
+:SquixInit dev "postgres://user:pass@localhost:5432/db"
+:SquixInit dev postgres "postgres://..."
+:SquixInit dev postgres "postgres://..." public      " schema as a 4th positional
+
+" no arguments → prompted for name, connection string, schema
+:SquixInit
+```
+
+> Don't mix the 3-positional form with the `--schema` flag — squix rejects
+> `<name> <type> <conn> --schema <s>`. Use pure flag mode, or pass schema as a
+> 4th positional.
 
 ## Plugin Configuration
 

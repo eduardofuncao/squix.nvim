@@ -264,11 +264,30 @@ function M.add(opts)
   else vim.ui.input({ prompt = "Save query as: " }, save) end
 end
 
---- Create a connection via `squix init` (type inferred from the conn string;
---- `$VAR` expanded for secrets).
+--- Run `squix init <argv...>` asynchronously and notify.
+local function run_init(argv)
+  vim.system(argv, { stdout = true, stderr = true, env = { NO_COLOR = "1" } }, function(out)
+    vim.schedule(function()
+      if out.code == 0 then
+        vim.notify("squix: " .. util.strip(vim.trim(out.stdout or "connection created")), vim.log.levels.INFO)
+      else
+        util.err(vim.trim(out.stderr or out.stdout or "init failed"))
+      end
+    end)
+  end)
+end
+
+--- Create a connection via `squix init`. opts.args forwards verbatim to the CLI
+--- (flag or positional mode — same as `squix init`); without args, prompts for
+--- name + connection string + optional schema (type inferred from the conn
+--- string; `$VAR` expanded for secrets).
 function M.init(opts)
   opts = opts or {}
   if not util.has_squix() then return end
+  if opts.args and opts.args[1] then
+    run_init(vim.list_extend({ "squix", "init" }, opts.args))
+    return
+  end
 
   vim.ui.input({ prompt = "Squix connection name: ", default = opts.name or "" }, function(name)
     name = vim.trim(name or "")
@@ -283,15 +302,7 @@ function M.init(opts)
         local args = { "squix", "init", "--name", name, "--conn-string", cs }
         schema = vim.trim(schema or "")
         if schema ~= "" then vim.list_extend(args, { "--schema", schema }) end
-        vim.system(args, { stdout = true, stderr = true, env = { NO_COLOR = "1" } }, function(out)
-          vim.schedule(function()
-            if out.code == 0 then
-              vim.notify("squix: " .. util.strip(vim.trim(out.stdout or "connection created")), vim.log.levels.INFO)
-            else
-              util.err(vim.trim(out.stderr or out.stdout or "init failed"))
-            end
-          end)
-        end)
+        run_init(args)
       end)
     end)
   end)
@@ -312,6 +323,36 @@ function M.status()
         :gsub("^%s+", "")
         :gsub("%s+$", "")
         :gsub(" ?·$", "")
+      vim.notify("squix: " .. msg, vim.log.levels.INFO)
+    end)
+  end)
+end
+
+--- Create a sample Office-themed SQLite database via `squix example`.
+--- opts.path overrides the default ./example.db; opts.force recreates it.
+function M.example(opts)
+  opts = opts or {}
+  if not util.has_squix() then return end
+  local path = (opts.path and opts.path ~= "") and opts.path or "example.db"
+  local args = { "squix", "example" }
+  if opts.path and opts.path ~= "" then table.insert(args, opts.path) end
+  if opts.force then table.insert(args, "--force") end
+  vim.system(args, { stdout = true, stderr = true, env = { NO_COLOR = "1" } }, function(out)
+    vim.schedule(function()
+      if out.code ~= 0 then
+        util.err(vim.trim(out.stderr or out.stdout or "example failed"))
+        return
+      end
+      local function line(cmd, desc)
+        return "  " .. cmd .. string.rep(" ", 17 - #cmd) .. desc
+      end
+      local msg = "created " .. path
+        .. "\nAn office-themed SQLite database is ready to explore (employees, departments, and timesheets tables)\n"
+        .. "\nCreate the connection with:\n"
+        .. "  :SquixInit --name example --conn " .. path .. "\n"
+        .. "\nAnd try it with:\n"
+        .. line(":SquixTables", "browse tables") .. "\n"
+        .. line(":SquixRun", "run SQL (type it, then run with the cursor over it)")
       vim.notify("squix: " .. msg, vim.log.levels.INFO)
     end)
   end)
@@ -392,8 +433,9 @@ local function apply()
     M.tui({ line1 = o.line1, line2 = o.line2, range = o.range })
   end, { range = true, desc = "Run SQL in the squix TUI" })
 
-  vim.api.nvim_create_user_command("SquixInit", function() M.init() end,
-    { desc = "Create a squix connection" })
+  vim.api.nvim_create_user_command("SquixInit", function(o)
+    M.init({ args = o.fargs })
+  end, { nargs = "*", desc = "Create a squix connection (squix init); no args prompts, args pass through" })
 
   vim.api.nvim_create_user_command("SquixSwitch", function(o)
     M.switch({ name = o.args ~= "" and o.args or nil })
@@ -425,6 +467,10 @@ local function apply()
 
   vim.api.nvim_create_user_command("SquixTables", function() M.tables() end,
     { desc = "Browse database tables in the squix TUI" })
+
+  vim.api.nvim_create_user_command("SquixExample", function(o)
+    M.example({ path = o.args ~= "" and o.args or nil, force = o.bang })
+  end, { bang = true, nargs = "?", desc = "Create a sample Office-themed SQLite database (squix example)" })
 
   local km = M.config.keymaps or {}
   if km.run then
