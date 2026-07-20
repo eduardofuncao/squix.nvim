@@ -3,19 +3,23 @@ local util = require("squix.util")
 local M = {}
 
 local defaults = {
-  hide_query = true, -- hide query name + SQL in the TUI (already in the editor)
-  term_keymaps = true, -- in-TUI <C-w>hjkl window navigation; false sends keys raw to the TUI
-  hide_statusline = true, -- set laststatus=0 while the squix TUI is focused (splits have no per-window statusline)
+  hide_query = true,       -- hide query name + SQL in the TUI
+  term_keymaps = true,     -- in-TUI <C-w>hjkl window navigation
+  hide_statusline = true,  -- set laststatus=0 while the squix TUI is focused
   window = {
     position = "botright", -- "botright" | "topleft" | "vertical" | "float"
     split_ratio = 0.4,
-    auto_focus = true, -- focus (and enter) the TUI window when it opens
+    auto_focus = true,     -- focus (and enter) the TUI window when it opens
     float = {
-      width = "80%", height = "80%", row = "center", col = "center",
-      relative = "editor", border = "rounded",
+      width = "80%",
+      height = "80%",
+      row = "center",
+      col = "center",
+      relative = "editor",
+      border = "rounded",
     },
   },
-  keymaps = {                 -- none mapped by default; set any to a key to enable
+  keymaps = { -- none mapped by default
     run = false,
     run_named_query = false,
     add = false,
@@ -26,17 +30,15 @@ local defaults = {
   },
 }
 
-M.config = vim.deepcopy(defaults)
-M.state = {} -- { win, buf } of the tracked squix TUI terminal
+M.state = {} -- { win, buf } of the squix TUI terminal
 
---- Line range of the blank-delimited paragraph around the cursor (vim's `vip`).
+-- get paragraph selection (vip)
 local function paragraph_range()
   local first = vim.fn.search("^$", "bnW")
   local last = vim.fn.search("^$", "nW")
   return (first == 0 and 1 or first + 1), (last == 0 and vim.fn.line("$") or last - 1)
 end
 
---- An explicit command range/selection, else the cursor's paragraph.
 local function sql_range(opts)
   if opts.range and opts.range >= 1 then return opts.line1, opts.line2 end
   return paragraph_range()
@@ -52,7 +54,7 @@ local function close_term()
   M.state.win, M.state.buf = nil, nil
 end
 
---- Resolve a float dimension: number, or "NN%" of `max`.
+-- number, or "NN%" of max
 local function float_dim(value, max)
   if value == nil then return math.floor(max * 0.8) end
   if type(value) == "string" then
@@ -63,7 +65,7 @@ local function float_dim(value, max)
   return math.floor(value)
 end
 
---- Resolve a float position: number, "center", or "NN%" of `max` (clamped).
+-- number, "center", or "NN%" of max (clamped)
 local function float_pos(value, size, max)
   local pos
   if value == "center" then
@@ -77,7 +79,6 @@ local function float_pos(value, size, max)
   return math.max(0, math.min(math.floor(pos), max - size))
 end
 
---- Open the TUI window (split or float); returns (win, buf).
 local function open_window(cfg)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.bo[buf].bufhidden = "wipe"
@@ -114,7 +115,6 @@ local function open_window(cfg)
   return win, buf
 end
 
---- Re-enter terminal mode when a squix terminal window is entered.
 local function force_insert()
   if vim.bo.buftype == "terminal" and vim.api.nvim_get_mode().mode ~= "t" then
     vim.schedule(function() pcall(vim.cmd, "startinsert") end)
@@ -132,10 +132,8 @@ local function configure_terminal(buf)
       vim.keymap.set("t", "<C-w>" .. d, "<C-\\><C-n><C-w>" .. d, o)
     end
   end
-  return grp
 end
 
---- Open the TUI window and run `cmd` (a squix argv list) in it.
 local function run_in_tui(cmd)
   local focus = M.config.window.auto_focus ~= false
   local prev = vim.api.nvim_get_current_win()
@@ -147,7 +145,8 @@ local function run_in_tui(cmd)
 
   if focus then
     vim.api.nvim_create_autocmd("TermOpen", {
-      once = true, buffer = buf,
+      once = true,
+      buffer = buf,
       callback = function() vim.schedule(function() vim.cmd("startinsert") end) end,
     })
   end
@@ -157,7 +156,6 @@ local function run_in_tui(cmd)
       if code ~= 0 then return end
       vim.schedule(function()
         close_win_buf(win, buf)
-        -- Only clear if still tracking this buffer (a newer TUI may have replaced it).
         if M.state.buf == buf then M.state.win, M.state.buf = nil, nil end
       end)
     end,
@@ -168,11 +166,21 @@ local function run_in_tui(cmd)
   end
 end
 
---- Run SQL in the interactive squix TUI. With an explicit range (visual
---- selection, `:%`, `:a,b`) runs that; otherwise runs the cursor's paragraph.
-function M.tui(opts)
+-- on failure util.fail(out), on success notify format(out) from stdout
+local function squix_async(argv, format)
+  vim.system(argv, { stdout = true, stderr = true, env = { NO_COLOR = "1" } }, vim.schedule_wrap(function(out)
+    if out.code ~= 0 then return util.fail(out) end
+    local msg = format and format(out) or util.strip(out.stdout or "")
+    vim.notify("squix: " .. msg, vim.log.levels.INFO)
+  end))
+end
+
+--- Run SQL in the interactive squix TUI. With an explicit visual
+--- selection or the cursor's paragraph.
+function M.run(opts)
   opts = opts or {}
   if not util.has_squix() then return end
+
   local sql = util.get_sql(sql_range(opts))
   if sql == "" then return end
   local cmd = { "squix", "run", sql }
@@ -180,17 +188,16 @@ function M.tui(opts)
   run_in_tui(cmd)
 end
 
---- `squix remove <name>` and notify.
 local function remove_query(name)
   local r = vim.system({ "squix", "remove", name }):wait()
   if r.code == 0 then
     vim.notify("squix: removed " .. name, vim.log.levels.INFO)
   else
-    util.err(vim.trim(r.stderr or "remove failed"))
+    util.fail(r)
   end
 end
 
---- Browse the database's tables in the squix TUI (like :SquixRun; header hidden).
+--- Browse the database's tables in the squix TUI
 function M.tables()
   if not util.has_squix() then return end
   local cmd = { "squix", "tables" }
@@ -198,24 +205,20 @@ function M.tables()
   run_in_tui(cmd)
 end
 
---- Pick a saved query from a list and call `on_choice(entry)` (nil if cancelled).
 local function pick_query(prompt, on_choice)
-  local out = vim.system({ "squix", "list", "queries", "--oneline" }, {
+  vim.system({ "squix", "list", "queries", "--oneline" }, {
     stdout = true, stderr = true, env = { NO_COLOR = "1" },
-  }):wait()
-  if out.code ~= 0 then
-    util.err(vim.trim(out.stderr or "failed to list queries"))
-    return
-  end
-  local entries = util.parse_items(out.stdout, "no queries saved")
-  if #entries == 0 then
-    vim.notify("squix: no saved queries.", vim.log.levels.WARN)
-    return
-  end
-  vim.ui.select(entries, {
-    prompt = prompt,
-    format_item = function(e) return e.label end,
-  }, on_choice)
+  }, vim.schedule_wrap(function(out)
+    if out.code ~= 0 then return util.fail(out) end
+    local entries = util.parse_items(out.stdout, "no queries saved")
+    if #entries == 0 then
+      return vim.notify("squix: no saved queries.", vim.log.levels.WARN)
+    end
+    vim.ui.select(entries, {
+      prompt = prompt,
+      format_item = function(e) return e.label end,
+    }, on_choice)
+  end))
 end
 
 --- Run a saved query in the TUI: directly with opts.name, else pick from a list.
@@ -242,6 +245,7 @@ end
 function M.add(opts)
   opts = opts or {}
   if not util.has_squix() then return end
+
   local sql = util.get_sql(sql_range(opts))
   if sql == "" then
     vim.notify("squix: no SQL to save", vim.log.levels.WARN)
@@ -250,40 +254,28 @@ function M.add(opts)
   local function save(name)
     name = vim.trim(name or "")
     if name == "" then return end
-    vim.system({ "squix", "add", name, sql }, { stdout = true, stderr = true, env = { NO_COLOR = "1" } }, function(out)
-      vim.schedule(function()
-        if out.code == 0 then
-          vim.notify("squix: " .. util.strip(vim.trim(out.stdout or "query added")), vim.log.levels.INFO)
-        else
-          util.err(vim.trim(out.stderr or out.stdout or "add failed"))
-        end
-      end)
+    squix_async({ "squix", "add", name, sql }, function(o)
+      return util.strip(vim.trim(o.stdout or "query added"))
     end)
   end
-  if opts.name and opts.name ~= "" then save(opts.name)
-  else vim.ui.input({ prompt = "Save query as: " }, save) end
+  if opts.name and opts.name ~= "" then
+    save(opts.name)
+  else
+    vim.ui.input({ prompt = "Save query as: " }, save)
+  end
 end
 
---- Run `squix init <argv...>` asynchronously and notify.
 local function run_init(argv)
-  vim.system(argv, { stdout = true, stderr = true, env = { NO_COLOR = "1" } }, function(out)
-    vim.schedule(function()
-      if out.code == 0 then
-        vim.notify("squix: " .. util.strip(vim.trim(out.stdout or "connection created")), vim.log.levels.INFO)
-      else
-        util.err(vim.trim(out.stderr or out.stdout or "init failed"))
-      end
-    end)
+  squix_async(argv, function(o)
+    return util.strip(vim.trim(o.stdout or "connection created"))
   end)
 end
 
---- Create a connection via `squix init`. opts.args forwards verbatim to the CLI
---- (flag or positional mode — same as `squix init`); without args, prompts for
---- name + connection string + optional schema (type inferred from the conn
---- string; `$VAR` expanded for secrets).
+--- Create a connection via `squix init`, args forwarded to cli
 function M.init(opts)
   opts = opts or {}
   if not util.has_squix() then return end
+
   if opts.args and opts.args[1] then
     run_init(vim.list_extend({ "squix", "init" }, opts.args))
     return
@@ -308,28 +300,20 @@ function M.init(opts)
   end)
 end
 
---- Show the active connection's type/schema, saved-query count, reachability.
+--- Show the active connection's status
 function M.status()
   if not util.has_squix() then return end
-  vim.system({ "squix", "status" }, { stdout = true, stderr = true, env = { NO_COLOR = "1" } }, function(out)
-    vim.schedule(function()
-      if out.code ~= 0 then
-        util.err(vim.trim(out.stderr or "status failed"))
-        return
-      end
-      local msg = util.strip(out.stdout or "")
-        :gsub("\n+", " · ")
-        :gsub("%s+", " ")
-        :gsub("^%s+", "")
-        :gsub("%s+$", "")
-        :gsub(" ?·$", "")
-      vim.notify("squix: " .. msg, vim.log.levels.INFO)
-    end)
+  squix_async({ "squix", "status" }, function(o)
+    local parts = {}
+    for line in vim.gsplit(util.strip(o.stdout or ""), "\n") do
+      line = vim.trim(line:gsub("%s+", " "))
+      if line ~= "" then parts[#parts + 1] = line end
+    end
+    return table.concat(parts, " - ")
   end)
 end
 
 --- Create a sample Office-themed SQLite database via `squix example`.
---- opts.path overrides the default ./example.db; opts.force recreates it.
 function M.example(opts)
   opts = opts or {}
   if not util.has_squix() then return end
@@ -337,24 +321,17 @@ function M.example(opts)
   local args = { "squix", "example" }
   if opts.path and opts.path ~= "" then table.insert(args, opts.path) end
   if opts.force then table.insert(args, "--force") end
-  vim.system(args, { stdout = true, stderr = true, env = { NO_COLOR = "1" } }, function(out)
-    vim.schedule(function()
-      if out.code ~= 0 then
-        util.err(vim.trim(out.stderr or out.stdout or "example failed"))
-        return
-      end
-      local function line(cmd, desc)
-        return "  " .. cmd .. string.rep(" ", 17 - #cmd) .. desc
-      end
-      local msg = "created " .. path
+  squix_async(args, function()
+    local function line(cmd, desc)
+      return "  " .. cmd .. string.rep(" ", 17 - #cmd) .. desc
+    end
+    return "created " .. path
         .. "\nAn office-themed SQLite database is ready to explore (employees, departments, and timesheets tables)\n"
         .. "\nCreate the connection with:\n"
         .. "  :SquixInit --name example --conn " .. path .. "\n"
         .. "\nAnd try it with:\n"
         .. line(":SquixTables", "browse tables") .. "\n"
         .. line(":SquixRun", "run SQL (type it, then run with the cursor over it)")
-      vim.notify("squix: " .. msg, vim.log.levels.INFO)
-    end)
   end)
 end
 
@@ -363,7 +340,7 @@ local function switch_to(name)
   if r.code == 0 then
     vim.notify("squix: switched to " .. name, vim.log.levels.INFO)
   else
-    util.err(vim.trim(r.stderr or "switch failed"))
+    util.fail(r)
   end
 end
 
@@ -375,27 +352,24 @@ function M.switch(opts)
     switch_to(opts.name)
     return
   end
-  local out = vim.system({ "squix", "list", "connections" }, {
+  vim.system({ "squix", "list", "connections" }, {
     stdout = true, stderr = true, env = { NO_COLOR = "1" },
-  }):wait()
-  if out.code ~= 0 then
-    util.err(vim.trim(out.stderr or "failed to list connections"))
-    return
-  end
-  local entries = util.parse_items(out.stdout, "no connections")
-  if #entries == 0 then
-    vim.notify("squix: no connections configured. Run :SquixInit first.", vim.log.levels.WARN)
-    return
-  end
-  vim.ui.select(entries, {
-    prompt = "Squix connection",
-    format_item = function(e) return e.label end,
-  }, function(choice)
-    if choice then switch_to(choice.name) end
-  end)
+  }, vim.schedule_wrap(function(out)
+    if out.code ~= 0 then return util.fail(out) end
+    local entries = util.parse_items(out.stdout, "no connections")
+    if #entries == 0 then
+      return vim.notify("squix: no connections configured. Run :SquixInit first.", vim.log.levels.WARN)
+    end
+    vim.ui.select(entries, {
+      prompt = "Squix connection",
+      format_item = function(e) return e.label end,
+    }, function(choice)
+      if choice then switch_to(choice.name) end
+    end)
+  end))
 end
 
---- Completion candidate names from a `squix list <sub>` invocation.
+-- names from `squix list <sub>`
 local function complete_names(sub, skip_phrase)
   local out = vim.system(vim.list_extend({ "squix" }, sub), {
     stdout = true, stderr = true, env = { NO_COLOR = "1" },
@@ -408,16 +382,15 @@ local function complete_names(sub, skip_phrase)
   return names
 end
 
---- Hide the statusline while a squix TUI window is focused, restore it otherwise.
---- (nvim has no per-window statusline for splits, so this toggles the global option.)
+-- hide global laststatus while a squix TUI is focused, restore after
 local function register_hide_statusline()
   local saved
   vim.api.nvim_create_autocmd({ "TermOpen", "WinEnter", "BufEnter" }, {
     group = vim.api.nvim_create_augroup("SquixStatusline", { clear = true }),
     callback = function()
       local in_squix = M.state.buf
-        and vim.api.nvim_buf_is_valid(M.state.buf)
-        and vim.api.nvim_get_current_buf() == M.state.buf
+          and vim.api.nvim_buf_is_valid(M.state.buf)
+          and vim.api.nvim_get_current_buf() == M.state.buf
       if in_squix then
         if vim.o.laststatus ~= 0 then saved = vim.o.laststatus end
         vim.o.laststatus = 0
@@ -430,7 +403,7 @@ end
 
 local function apply()
   vim.api.nvim_create_user_command("SquixRun", function(o)
-    M.tui({ line1 = o.line1, line2 = o.line2, range = o.range })
+    M.run({ line1 = o.line1, line2 = o.line2, range = o.range })
   end, { range = true, desc = "Run SQL in the squix TUI" })
 
   vim.api.nvim_create_user_command("SquixInit", function(o)
@@ -440,21 +413,24 @@ local function apply()
   vim.api.nvim_create_user_command("SquixSwitch", function(o)
     M.switch({ name = o.args ~= "" and o.args or nil })
   end, {
-    nargs = "?", desc = "Switch squix connection (picks if no name given)",
+    nargs = "?",
+    desc = "Switch squix connection (picks if no name given)",
     complete = function() return complete_names({ "list", "connections" }, "no connections") end,
   })
 
   vim.api.nvim_create_user_command("SquixRunNamedQuery", function(o)
     M.query({ name = o.args ~= "" and o.args or nil })
   end, {
-    nargs = "?", desc = "Run a saved query in the squix TUI (picks if no name given)",
+    nargs = "?",
+    desc = "Run a saved query in the squix TUI (picks if no name given)",
     complete = function() return complete_names({ "list", "queries", "--oneline" }, "no queries saved") end,
   })
 
   vim.api.nvim_create_user_command("SquixRemove", function(o)
     M.remove({ name = o.args ~= "" and o.args or nil })
   end, {
-    nargs = "?", desc = "Remove a saved query (picks if no name given)",
+    nargs = "?",
+    desc = "Remove a saved query (picks if no name given)",
     complete = function() return complete_names({ "list", "queries", "--oneline" }, "no queries saved") end,
   })
 
@@ -510,8 +486,8 @@ function M.setup(opts)
     vim.schedule(function()
       if vim.fn.executable("squix") == 0 then
         vim.notify(
-          "squix: 'squix' not on PATH — :Squix* commands will fail until squix is "
-            .. "installed and visible to Neovim's PATH.",
+          "squix: 'squix' not on PATH -- :Squix* commands will fail until squix is "
+          .. "installed and visible to Neovim's PATH.",
           vim.log.levels.WARN
         )
       end
