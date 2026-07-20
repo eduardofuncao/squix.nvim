@@ -60,8 +60,8 @@ select * from employees;
 
 ## Requirements
 
-- Neovim **0.10+** (uses `vim.system`, `vim.ui.select`)
-- The **squix** CLI installed and on `PATH`
+- Neovim **v0.10+** (uses `vim.system`, `vim.ui.select`)
+- The **squix** CLI installed and on `PATH` (v0.5.2+ for a better experience)
 - At least one database connection configured (`:SquixInit` from within Neovim, or `squix init` on the CLI)
 
 ## Install
