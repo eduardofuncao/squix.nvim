@@ -21,21 +21,23 @@
 4. Write some SQL, then run it, stash it, and re-run it later:
 
 ```vim
-:SquixRun              " run the SQL under the cursor (paragraph or selection) in the TUI
+:SquixRun              " run the SQL under the cursor (paragraph or selection) in a terminal split
 :SquixAdd              " save that SQL as a named query (prompts for a name)
 :SquixRunNamedQuery    " pick and run a saved query
-:SquixSwitch           " switch  database connection
+:SquixSwitch           " select the active database connection (all queries will run on it)
 ```
 5. After the query results window opens, you can traverse it using vim bindings: `hjkl`, `0/$`, `gg/G`, `<C-D>/<C-U>` for navigation; `v/V`, `y` and `x` for visual selection, copying and exporting results; `/` for searching results contents (`n/N` for next/prev) and `f` for searching columns names (`;/,` for next/prev); `q` to close it. Press `H` for the full shortcut list
 
-<img width="867" height="300" alt="image" src="https://github.com/user-attachments/assets/5c776060-6e57-483f-8942-56c99fadad06" />
+<div align="center">
+   <img width="867" height="300" alt="image" src="https://github.com/user-attachments/assets/5c776060-6e57-483f-8942-56c99fadad06" />
+</div>
 
 5. It is also possible to run update (`u`) and delete commands(`D`), as well as changing the ran SQL (`e`). For these keybinds, squix will open a buffer preloaded with the SQL statement, and you can save and quit (`:wq`) to run it, or quit without saving(`:q`) to cancel it
 
 That's the main loop: write → run → save → re-run. 
 > No keymaps are bound by default. See [Plugin Configuration](#plugin-configuration) to enable the recommended `<leader>s*` shortcuts.
 
-## Try it with a sample database
+### Try it with a sample database
 
 No database ready? `:SquixExample` creates an office-themed SQLite DB for testing (`employees`, `departments`, and `timesheets` tables). Test it with:
 
@@ -50,6 +52,11 @@ Then write some SQL, place your cursor on it and run with `:SquixRun`:
 ```sql
 select * from employees;
 ```
+### Demo
+
+<div align="center">
+   <img width="600" height="auto" alt="2026-07-19_20-37-26_small" src="https://github.com/user-attachments/assets/0134b685-0a13-4e80-b713-0940617a734f" />
+</div>
 
 ## Requirements
 
